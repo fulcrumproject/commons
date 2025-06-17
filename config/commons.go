@@ -3,25 +3,25 @@ package config
 import "log/slog"
 
 // Fulcrum Log configuration
-type LogConfig struct {
+type Log struct {
 	Format string `json:"format" env:"LOG_FORMAT" validate:"omitempty,oneof=text json"`
 	Level  string `json:"level" env:"LOG_LEVEL" validate:"omitempty,oneof=silent error warn info"`
 }
 
 // GetLogLevel converts a string log level to slog.Level
-func (c *LogConfig) GetLogLevel() slog.Level {
+func (c *Log) GetLogLevel() slog.Level {
 	return logLevel(c.Level)
 }
 
 // Fulcrum DB configuration
-type DBConfig struct {
+type DB struct {
 	DSN       string `json:"dsn" env:"DB_DSN" validate:"required"`
 	LogLevel  string `json:"logLevel" env:"DB_LOG_LEVEL" validate:"omitempty,oneof=silent error warn info"`
 	LogFormat string `json:"logFormat" env:"DB_LOG_FORMAT" validate:"omitempty,oneof=text json"`
 }
 
 // GetLogLevel converts the string log level to gorm logger.LogLevel
-func (c *DBConfig) GetLogLevel() slog.Level {
+func (c *DB) GetLogLevel() slog.Level {
 	return logLevel(c.LogLevel)
 }
 

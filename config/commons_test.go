@@ -54,13 +54,13 @@ func TestLogLevel(t *testing.T) {
 }
 
 func TestLogConfig_GetLogLevel(t *testing.T) {
-	config := LogConfig{Level: "error"}
+	config := Log{Level: "error"}
 	result := config.GetLogLevel()
 	assert.Equal(t, slog.LevelError, result)
 }
 
 func TestDBConfig_GetLogLevel(t *testing.T) {
-	config := DBConfig{LogLevel: "warn"}
+	config := DB{LogLevel: "warn"}
 	result := config.GetLogLevel()
 	assert.Equal(t, slog.LevelWarn, result)
 }
