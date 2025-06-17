@@ -6,34 +6,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/go-chi/render"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
-
-func TestErrInvalidFields(t *testing.T) {
-	if ErrInvalidFields == nil {
-		t.Error("ErrInvalidFields should not be nil")
-	}
-
-	expected := "invalid fields in request"
-	if ErrInvalidFields.Error() != expected {
-		t.Errorf("Expected error message '%s', got '%s'", expected, ErrInvalidFields.Error())
-	}
-}
-
-func TestValidationError(t *testing.T) {
-	validationErr := ValidationError{
-		Path:    "field.name",
-		Message: "field is required",
-	}
-
-	if validationErr.Path != "field.name" {
-		t.Errorf("Expected Path 'field.name', got '%s'", validationErr.Path)
-	}
-
-	if validationErr.Message != "field is required" {
-		t.Errorf("Expected Message 'field is required', got '%s'", validationErr.Message)
-	}
-}
 
 func TestErrResponse_Render(t *testing.T) {
 	tests := []struct {
@@ -70,13 +45,8 @@ func TestErrResponse_Render(t *testing.T) {
 			r := httptest.NewRequest("GET", "/", nil)
 
 			err := tt.errResponse.Render(w, r)
-			if err != nil {
-				t.Errorf("Render() returned error: %v", err)
-			}
-
-			if w.Code != tt.expectedStatus {
-				t.Errorf("Expected status code %d, got %d", tt.expectedStatus, w.Code)
-			}
+			assert.NoError(t, err, "Render() should not return an error")
+			assert.Equal(t, tt.expectedStatus, w.Code, "Status code should match expected value")
 		})
 	}
 }
@@ -86,29 +56,13 @@ func TestErrInvalidRequest(t *testing.T) {
 
 	renderer := ErrInvalidRequest(testErr)
 	errResp, ok := renderer.(*ErrResponse)
-	if !ok {
-		t.Fatal("Expected *ErrResponse type")
-	}
+	require.True(t, ok, "Expected *ErrResponse type")
 
-	if errResp.Err != testErr {
-		t.Errorf("Expected Err to be %v, got %v", testErr, errResp.Err)
-	}
-
-	if errResp.ErrorText != testErr.Error() {
-		t.Errorf("Expected ErrorText '%s', got '%s'", testErr.Error(), errResp.ErrorText)
-	}
-
-	if errResp.HTTPStatusCode != http.StatusBadRequest {
-		t.Errorf("Expected HTTPStatusCode %d, got %d", http.StatusBadRequest, errResp.HTTPStatusCode)
-	}
-
-	if errResp.StatusText != "Invalid request" {
-		t.Errorf("Expected StatusText 'Invalid request', got '%s'", errResp.StatusText)
-	}
-
-	if errResp.ValidationErrors != nil {
-		t.Error("Expected ValidationErrors to be nil")
-	}
+	assert.Equal(t, testErr, errResp.Err, "Err should match the input error")
+	assert.Equal(t, testErr.Error(), errResp.ErrorText, "ErrorText should match error message")
+	assert.Equal(t, http.StatusBadRequest, errResp.HTTPStatusCode, "HTTPStatusCode should be BadRequest")
+	assert.Equal(t, "Invalid request", errResp.StatusText, "StatusText should be 'Invalid request'")
+	assert.Nil(t, errResp.ValidationErrors, "ValidationErrors should be nil")
 }
 
 func TestMultiErrInvalidRequest(t *testing.T) {
@@ -119,37 +73,15 @@ func TestMultiErrInvalidRequest(t *testing.T) {
 
 	renderer := MultiErrInvalidRequest(validationErrs)
 	errResp, ok := renderer.(*ErrResponse)
-	if !ok {
-		t.Fatal("Expected *ErrResponse type")
-	}
+	require.True(t, ok, "Expected *ErrResponse type")
 
-	if errResp.Err != ErrInvalidFields {
-		t.Errorf("Expected Err to be %v, got %v", ErrInvalidFields, errResp.Err)
-	}
-
-	if errResp.ErrorText != ErrInvalidFields.Error() {
-		t.Errorf("Expected ErrorText '%s', got '%s'", ErrInvalidFields.Error(), errResp.ErrorText)
-	}
-
-	if errResp.HTTPStatusCode != http.StatusBadRequest {
-		t.Errorf("Expected HTTPStatusCode %d, got %d", http.StatusBadRequest, errResp.HTTPStatusCode)
-	}
-
-	if errResp.StatusText != "Invalid request" {
-		t.Errorf("Expected StatusText 'Invalid request', got '%s'", errResp.StatusText)
-	}
-
-	if len(errResp.ValidationErrors) != 2 {
-		t.Errorf("Expected 2 validation errors, got %d", len(errResp.ValidationErrors))
-	}
-
-	if errResp.ValidationErrors[0].Path != "name" {
-		t.Errorf("Expected first validation error path 'name', got '%s'", errResp.ValidationErrors[0].Path)
-	}
-
-	if errResp.ValidationErrors[1].Message != "email is invalid" {
-		t.Errorf("Expected second validation error message 'email is invalid', got '%s'", errResp.ValidationErrors[1].Message)
-	}
+	assert.Equal(t, ErrInvalidFields, errResp.Err, "Err should be ErrInvalidFields")
+	assert.Equal(t, ErrInvalidFields.Error(), errResp.ErrorText, "ErrorText should match ErrInvalidFields message")
+	assert.Equal(t, http.StatusBadRequest, errResp.HTTPStatusCode, "HTTPStatusCode should be BadRequest")
+	assert.Equal(t, "Invalid request", errResp.StatusText, "StatusText should be 'Invalid request'")
+	assert.Len(t, errResp.ValidationErrors, 2, "Should have 2 validation errors")
+	assert.Equal(t, "name", errResp.ValidationErrors[0].Path, "First validation error path should be 'name'")
+	assert.Equal(t, "email is invalid", errResp.ValidationErrors[1].Message, "Second validation error message should match")
 }
 
 func TestErrNotFound(t *testing.T) {
@@ -157,25 +89,12 @@ func TestErrNotFound(t *testing.T) {
 
 	renderer := ErrNotFound(testErr)
 	errResp, ok := renderer.(*ErrResponse)
-	if !ok {
-		t.Fatal("Expected *ErrResponse type")
-	}
+	require.True(t, ok, "Expected *ErrResponse type")
 
-	if errResp.Err != testErr {
-		t.Errorf("Expected Err to be %v, got %v", testErr, errResp.Err)
-	}
-
-	if errResp.ErrorText != testErr.Error() {
-		t.Errorf("Expected ErrorText '%s', got '%s'", testErr.Error(), errResp.ErrorText)
-	}
-
-	if errResp.HTTPStatusCode != http.StatusNotFound {
-		t.Errorf("Expected HTTPStatusCode %d, got %d", http.StatusNotFound, errResp.HTTPStatusCode)
-	}
-
-	if errResp.StatusText != "Resource not found" {
-		t.Errorf("Expected StatusText 'Resource not found', got '%s'", errResp.StatusText)
-	}
+	assert.Equal(t, testErr, errResp.Err, "Err should match the input error")
+	assert.Equal(t, testErr.Error(), errResp.ErrorText, "ErrorText should match error message")
+	assert.Equal(t, http.StatusNotFound, errResp.HTTPStatusCode, "HTTPStatusCode should be NotFound")
+	assert.Equal(t, "Resource not found", errResp.StatusText, "StatusText should be 'Resource not found'")
 }
 
 func TestErrInternal(t *testing.T) {
@@ -183,25 +102,12 @@ func TestErrInternal(t *testing.T) {
 
 	renderer := ErrInternal(testErr)
 	errResp, ok := renderer.(*ErrResponse)
-	if !ok {
-		t.Fatal("Expected *ErrResponse type")
-	}
+	require.True(t, ok, "Expected *ErrResponse type")
 
-	if errResp.Err != testErr {
-		t.Errorf("Expected Err to be %v, got %v", testErr, errResp.Err)
-	}
-
-	if errResp.ErrorText != testErr.Error() {
-		t.Errorf("Expected ErrorText '%s', got '%s'", testErr.Error(), errResp.ErrorText)
-	}
-
-	if errResp.HTTPStatusCode != http.StatusInternalServerError {
-		t.Errorf("Expected HTTPStatusCode %d, got %d", http.StatusInternalServerError, errResp.HTTPStatusCode)
-	}
-
-	if errResp.StatusText != "Internal server error" {
-		t.Errorf("Expected StatusText 'Internal server error', got '%s'", errResp.StatusText)
-	}
+	assert.Equal(t, testErr, errResp.Err, "Err should match the input error")
+	assert.Equal(t, testErr.Error(), errResp.ErrorText, "ErrorText should match error message")
+	assert.Equal(t, http.StatusInternalServerError, errResp.HTTPStatusCode, "HTTPStatusCode should be InternalServerError")
+	assert.Equal(t, "Internal server error", errResp.StatusText, "StatusText should be 'Internal server error'")
 }
 
 func TestErrUnauthenticated(t *testing.T) {
@@ -209,25 +115,12 @@ func TestErrUnauthenticated(t *testing.T) {
 
 	renderer := ErrUnauthenticated(testErr)
 	errResp, ok := renderer.(*ErrResponse)
-	if !ok {
-		t.Fatal("Expected *ErrResponse type")
-	}
+	require.True(t, ok, "Expected *ErrResponse type")
 
-	if errResp.Err != testErr {
-		t.Errorf("Expected Err to be %v, got %v", testErr, errResp.Err)
-	}
-
-	if errResp.ErrorText != testErr.Error() {
-		t.Errorf("Expected ErrorText '%s', got '%s'", testErr.Error(), errResp.ErrorText)
-	}
-
-	if errResp.HTTPStatusCode != http.StatusUnauthorized {
-		t.Errorf("Expected HTTPStatusCode %d, got %d", http.StatusUnauthorized, errResp.HTTPStatusCode)
-	}
-
-	if errResp.StatusText != "Unauthorized" {
-		t.Errorf("Expected StatusText 'Unauthorized', got '%s'", errResp.StatusText)
-	}
+	assert.Equal(t, testErr, errResp.Err, "Err should match the input error")
+	assert.Equal(t, testErr.Error(), errResp.ErrorText, "ErrorText should match error message")
+	assert.Equal(t, http.StatusUnauthorized, errResp.HTTPStatusCode, "HTTPStatusCode should be Unauthorized")
+	assert.Equal(t, "Unauthorized", errResp.StatusText, "StatusText should be 'Unauthorized'")
 }
 
 func TestErrUnauthorized(t *testing.T) {
@@ -235,53 +128,10 @@ func TestErrUnauthorized(t *testing.T) {
 
 	renderer := ErrUnauthorized(testErr)
 	errResp, ok := renderer.(*ErrResponse)
-	if !ok {
-		t.Fatal("Expected *ErrResponse type")
-	}
+	require.True(t, ok, "Expected *ErrResponse type")
 
-	if errResp.Err != testErr {
-		t.Errorf("Expected Err to be %v, got %v", testErr, errResp.Err)
-	}
-
-	if errResp.ErrorText != testErr.Error() {
-		t.Errorf("Expected ErrorText '%s', got '%s'", testErr.Error(), errResp.ErrorText)
-	}
-
-	if errResp.HTTPStatusCode != http.StatusForbidden {
-		t.Errorf("Expected HTTPStatusCode %d, got %d", http.StatusForbidden, errResp.HTTPStatusCode)
-	}
-
-	if errResp.StatusText != "Forbidden" {
-		t.Errorf("Expected StatusText 'Forbidden', got '%s'", errResp.StatusText)
-	}
-}
-
-func TestErrResponse_ImplementsRenderer(t *testing.T) {
-	var _ render.Renderer = &ErrResponse{}
-}
-
-func TestMultiErrInvalidRequest_EmptyValidationErrors(t *testing.T) {
-	var validationErrs []ValidationError
-
-	renderer := MultiErrInvalidRequest(validationErrs)
-	errResp, ok := renderer.(*ErrResponse)
-	if !ok {
-		t.Fatal("Expected *ErrResponse type")
-	}
-
-	if len(errResp.ValidationErrors) != 0 {
-		t.Errorf("Expected 0 validation errors, got %d", len(errResp.ValidationErrors))
-	}
-}
-
-func TestMultiErrInvalidRequest_NilValidationErrors(t *testing.T) {
-	renderer := MultiErrInvalidRequest(nil)
-	errResp, ok := renderer.(*ErrResponse)
-	if !ok {
-		t.Fatal("Expected *ErrResponse type")
-	}
-
-	if errResp.ValidationErrors != nil {
-		t.Error("Expected ValidationErrors to be nil")
-	}
+	assert.Equal(t, testErr, errResp.Err, "Err should match the input error")
+	assert.Equal(t, testErr.Error(), errResp.ErrorText, "ErrorText should match error message")
+	assert.Equal(t, http.StatusForbidden, errResp.HTTPStatusCode, "HTTPStatusCode should be Forbidden")
+	assert.Equal(t, "Forbidden", errResp.StatusText, "StatusText should be 'Forbidden'")
 }

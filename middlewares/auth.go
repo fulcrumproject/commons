@@ -23,7 +23,7 @@ func Auth[ID, S any](authenticator auth.Authenticator) func(http.Handler) http.H
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" && !strings.HasPrefix(authHeader, "Bearer ") {
+			if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
 				render.Render(w, r, response.ErrUnauthenticated(ErrUnauthorized))
 				return
 			}

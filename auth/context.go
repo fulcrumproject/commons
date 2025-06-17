@@ -16,7 +16,7 @@ func WithIdentity(ctx context.Context, id *Identity) context.Context {
 // MustGetIdentity retrieves the authenticated identity from the request context
 func MustGetIdentity(ctx context.Context) *Identity {
 	id, ok := ctx.Value(identityContextKey).(*Identity)
-	if !ok {
+	if !ok || id == nil {
 		panic("cannot find identity in context")
 	}
 	return id

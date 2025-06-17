@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/fulcrumproject/commons/auth"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConfig_GetJWKSURL(t *testing.T) {
@@ -15,9 +17,7 @@ func TestConfig_GetJWKSURL(t *testing.T) {
 	expected := "https://keycloak.example.com/realms/test-realm/protocol/openid_connect/certs"
 	actual := config.GetJWKSURL()
 
-	if actual != expected {
-		t.Errorf("Expected JWKS URL '%s', got '%s'", expected, actual)
-	}
+	assert.Equal(t, expected, actual, "JWKS URL should match expected value")
 }
 
 func TestConfig_GetIssuer(t *testing.T) {
@@ -29,9 +29,7 @@ func TestConfig_GetIssuer(t *testing.T) {
 	expected := "https://keycloak.example.com/realms/test-realm"
 	actual := config.GetIssuer()
 
-	if actual != expected {
-		t.Errorf("Expected issuer '%s', got '%s'", expected, actual)
-	}
+	assert.Equal(t, expected, actual, "Issuer should match expected value")
 }
 
 func TestConfig_Validate(t *testing.T) {
@@ -109,15 +107,10 @@ func TestConfig_Validate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.config.Validate()
 			if tt.expectError {
-				if err == nil {
-					t.Error("Expected error but got none")
-				} else if err.Error() != tt.errorMsg {
-					t.Errorf("Expected error message '%s', got '%s'", tt.errorMsg, err.Error())
-				}
+				require.Error(t, err, "Expected an error")
+				assert.Equal(t, tt.errorMsg, err.Error(), "Error message should match expected")
 			} else {
-				if err != nil {
-					t.Errorf("Expected no error but got: %v", err)
-				}
+				assert.NoError(t, err, "Expected no error")
 			}
 		})
 	}
@@ -311,16 +304,10 @@ func TestAuthenticator_extractRole(t *testing.T) {
 			role, err := authenticator.extractRole(tt.claims)
 
 			if tt.expectError {
-				if err == nil {
-					t.Error("Expected error but got none")
-				}
+				assert.Error(t, err, "Expected an error")
 			} else {
-				if err != nil {
-					t.Errorf("Expected no error but got: %v", err)
-				}
-				if role != tt.expectedRole {
-					t.Errorf("Expected role '%s', got '%s'", tt.expectedRole, role)
-				}
+				assert.NoError(t, err, "Expected no error")
+				assert.Equal(t, tt.expectedRole, role, "Role should match expected value")
 			}
 		})
 	}
