@@ -11,16 +11,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/joho/godotenv"
 )
 
-// Validator defines the interface for configuration validation
-type Validator interface {
-	Validate() error
-}
-
 // Builder implements a generic builder pattern for creating configuration instances
-type Builder[T Validator] struct {
+type Builder[T any] struct {
 	config    T
 	err       error
 	envPrefix string
@@ -29,31 +25,31 @@ type Builder[T Validator] struct {
 }
 
 // BuilderOption defines a function type for configuring the Builder
-type BuilderOption[T Validator] func(*Builder[T])
+type BuilderOption[T any] func(*Builder[T])
 
 // WithEnvPrefix sets the environment variable prefix
-func WithEnvPrefix[T Validator](prefix string) BuilderOption[T] {
+func WithEnvPrefix[T any](prefix string) BuilderOption[T] {
 	return func(b *Builder[T]) {
 		b.envPrefix = prefix
 	}
 }
 
 // WithEnvTag sets the struct tag name for environment variables
-func WithEnvTag[T Validator](tag string) BuilderOption[T] {
+func WithEnvTag[T any](tag string) BuilderOption[T] {
 	return func(b *Builder[T]) {
 		b.envTag = tag
 	}
 }
 
 // WithEnvFiles sets the environment files to load
-func WithEnvFiles[T Validator](files ...string) BuilderOption[T] {
+func WithEnvFiles[T any](files ...string) BuilderOption[T] {
 	return func(b *Builder[T]) {
 		b.envFiles = files
 	}
 }
 
 // New returns a Builder with the provided default configuration and options
-func New[T Validator](defaultConfig T, opts ...BuilderOption[T]) *Builder[T] {
+func New[T any](defaultConfig T, opts ...BuilderOption[T]) *Builder[T] {
 	b := &Builder[T]{
 		config:   defaultConfig,
 		envTag:   "env", // Default tag
@@ -119,7 +115,8 @@ func (b *Builder[T]) Build() (T, error) {
 		return zero, b.err
 	}
 
-	if err := b.config.Validate(); err != nil {
+	v := validator.New()
+	if err := v.Struct(b.config); err != nil {
 		return zero, fmt.Errorf("invalid configuration: %w", err)
 	}
 
