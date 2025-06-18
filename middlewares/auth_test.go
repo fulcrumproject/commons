@@ -546,6 +546,190 @@ func TestAuthzFromBody(t *testing.T) {
 	}
 }
 
+func TestMustHaveRoles(t *testing.T) {
+	// Helper to create test UUIDs
+	testUUID := properties.NewUUID()
+
+	// Create test identities with different roles
+	adminIdentity := &auth.Identity{
+		ID:   testUUID,
+		Name: "admin-user",
+		Role: auth.RoleAdmin,
+		Scope: auth.IdentityScope{
+			ParticipantID: nil,
+			AgentID:       nil,
+		},
+	}
+
+	participantIdentity := &auth.Identity{
+		ID:   testUUID,
+		Name: "participant-user",
+		Role: auth.RoleParticipant,
+		Scope: auth.IdentityScope{
+			ParticipantID: &testUUID,
+			AgentID:       nil,
+		},
+	}
+
+	agentIdentity := &auth.Identity{
+		ID:   testUUID,
+		Name: "agent-user",
+		Role: auth.RoleAgent,
+		Scope: auth.IdentityScope{
+			ParticipantID: &testUUID,
+			AgentID:       &testUUID,
+		},
+	}
+
+	tests := []struct {
+		name           string
+		identity       *auth.Identity
+		requiredRoles  []auth.Role
+		expectError    bool
+		expectedStatus int
+	}{
+		{
+			name:           "Admin has admin role - should pass",
+			identity:       adminIdentity,
+			requiredRoles:  []auth.Role{auth.RoleAdmin},
+			expectError:    false,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "Participant has participant role - should pass",
+			identity:       participantIdentity,
+			requiredRoles:  []auth.Role{auth.RoleParticipant},
+			expectError:    false,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "Agent has agent role - should pass",
+			identity:       agentIdentity,
+			requiredRoles:  []auth.Role{auth.RoleAgent},
+			expectError:    false,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "Admin has one of multiple required roles - should pass",
+			identity:       adminIdentity,
+			requiredRoles:  []auth.Role{auth.RoleParticipant, auth.RoleAdmin},
+			expectError:    false,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "Participant has one of multiple required roles - should pass",
+			identity:       participantIdentity,
+			requiredRoles:  []auth.Role{auth.RoleParticipant, auth.RoleAgent},
+			expectError:    false,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "Agent has one of multiple required roles - should pass",
+			identity:       agentIdentity,
+			requiredRoles:  []auth.Role{auth.RoleAdmin, auth.RoleAgent},
+			expectError:    false,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "Participant does not have admin role - should fail",
+			identity:       participantIdentity,
+			requiredRoles:  []auth.Role{auth.RoleAdmin},
+			expectError:    true,
+			expectedStatus: http.StatusForbidden,
+		},
+		{
+			name:           "Agent does not have admin role - should fail",
+			identity:       agentIdentity,
+			requiredRoles:  []auth.Role{auth.RoleAdmin},
+			expectError:    true,
+			expectedStatus: http.StatusForbidden,
+		},
+		{
+			name:           "Admin does not have participant role - should fail",
+			identity:       adminIdentity,
+			requiredRoles:  []auth.Role{auth.RoleParticipant},
+			expectError:    true,
+			expectedStatus: http.StatusForbidden,
+		},
+		{
+			name:           "Participant does not have any of multiple required roles - should fail",
+			identity:       participantIdentity,
+			requiredRoles:  []auth.Role{auth.RoleAdmin, auth.RoleAgent},
+			expectError:    true,
+			expectedStatus: http.StatusForbidden,
+		},
+		{
+			name:           "Agent does not have participant role - should fail",
+			identity:       agentIdentity,
+			requiredRoles:  []auth.Role{auth.RoleParticipant},
+			expectError:    true,
+			expectedStatus: http.StatusForbidden,
+		},
+		{
+			name:           "Empty roles list - should fail",
+			identity:       adminIdentity,
+			requiredRoles:  []auth.Role{},
+			expectError:    true,
+			expectedStatus: http.StatusForbidden,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a test handler that will be called if middleware passes
+			nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte("success"))
+			})
+
+			// Create the middleware
+			middleware := MustHaveRoles(tt.requiredRoles...)
+			handler := middleware(nextHandler)
+
+			// Create a request with identity in context
+			req := httptest.NewRequest("GET", "/test", nil)
+			ctx := auth.WithIdentity(req.Context(), tt.identity)
+			req = req.WithContext(ctx)
+
+			// Create a response recorder
+			rr := httptest.NewRecorder()
+
+			// Execute the handler
+			handler.ServeHTTP(rr, req)
+
+			// Check the response
+			assert.Equal(t, tt.expectedStatus, rr.Code)
+
+			if tt.expectError {
+				// Should return error response, not call next handler
+				assert.NotEqual(t, "success", rr.Body.String())
+			} else {
+				// Should call next handler successfully
+				assert.Equal(t, "success", rr.Body.String())
+			}
+		})
+	}
+}
+
+func TestMustHaveRoles_PanicOnMissingIdentity(t *testing.T) {
+	// Test that middleware panics when identity is not in context
+	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	middleware := MustHaveRoles(auth.RoleAdmin)
+	handler := middleware(nextHandler)
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	// Note: Not adding identity to context
+	rr := httptest.NewRecorder()
+
+	// Should panic because MustGetIdentity will panic when identity is not found
+	assert.Panics(t, func() {
+		handler.ServeHTTP(rr, req)
+	})
+}
+
 // Mock implementations for testing
 
 type mockAuthenticator struct {

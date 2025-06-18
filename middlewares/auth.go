@@ -167,3 +167,31 @@ func AuthzFromBody[T ObjectScopeProvider](
 	// Use the base AuthzFromExtractor with our specialized extractor
 	return AuthzFromExtractor(object, action, authorizer, extractor)
 }
+
+// MustHaveRoles creates a middleware that ensures the authenticated user has at least one of the required roles
+func MustHaveRoles(roles ...auth.Role) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Get identity from context
+			identity := auth.MustGetIdentity(r.Context())
+
+			// Check if user has any of the required roles
+			hasRequiredRole := false
+			for _, role := range roles {
+				if identity.HasRole(role) {
+					hasRequiredRole = true
+					break
+				}
+			}
+
+			if !hasRequiredRole {
+				err := fmt.Errorf("access denied: user role '%s' is not authorized", identity.Role)
+				render.Render(w, r, response.ErrUnauthorized(err))
+				return
+			}
+
+			// Continue with the request
+			next.ServeHTTP(w, r)
+		})
+	}
+}
