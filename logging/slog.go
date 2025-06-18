@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/fulcrumproject/commons/config"
-	"github.com/go-chi/chi/middleware"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 // NewLogger configures the logger based on the log format and level from config
