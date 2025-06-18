@@ -4,9 +4,9 @@ import (
 	"fmt"
 )
 
-// AuthorizationRule represents a single authorization rule with role, action, and object
+// AuthorizationRule represents a single authorization rule with roles, action, and object
 type AuthorizationRule struct {
-	Role   Role
+	Roles  []Role
 	Action Action
 	Object ObjectType
 }
@@ -33,8 +33,13 @@ func (a *RuleBasedAuthorizer) Authorize(identity *Identity, action Action, objec
 
 	// Check if any of the identity's roles match the authorization rules
 	for _, rule := range a.rules {
-		if identity.HasRole(rule.Role) && rule.Action == action && rule.Object == object {
-			return nil // Authorization successful
+		if rule.Action == action && rule.Object == object {
+			// Check if identity has any of the required roles
+			for _, requiredRole := range rule.Roles {
+				if identity.HasRole(requiredRole) {
+					return nil // Authorization successful
+				}
+			}
 		}
 	}
 

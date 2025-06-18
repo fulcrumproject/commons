@@ -14,10 +14,12 @@ func TestRuleBasedAuthorizer_Authorize(t *testing.T) {
 	testUUID2 := properties.NewUUID()
 
 	rules := []AuthorizationRule{
-		{Role: RoleAdmin, Action: "read", Object: "user"},
-		{Role: RoleAdmin, Action: "write", Object: "user"},
-		{Role: RoleParticipant, Action: "read", Object: "data"},
-		{Role: RoleAgent, Action: "write", Object: "agent_data"},
+		{Roles: []Role{RoleAdmin}, Action: "read", Object: "user"},
+		{Roles: []Role{RoleAdmin}, Action: "write", Object: "user"},
+		{Roles: []Role{RoleParticipant}, Action: "read", Object: "data"},
+		{Roles: []Role{RoleAgent}, Action: "write", Object: "agent_data"},
+		{Roles: []Role{RoleAdmin, RoleParticipant}, Action: "read", Object: "shared_data"},
+		{Roles: []Role{RoleParticipant, RoleAgent}, Action: "write", Object: "participant_data"},
 	}
 
 	authorizer := NewRuleBasedAuthorizer(rules)
@@ -147,6 +149,92 @@ func TestRuleBasedAuthorizer_Authorize(t *testing.T) {
 			expectError:   true,
 			errorContains: "access denied: no matching authorization rule found",
 		},
+		{
+			name: "Admin can read shared_data (multiple roles rule)",
+			identity: &Identity{
+				Role: RoleAdmin,
+				Scope: IdentityScope{
+					ParticipantID: nil,
+					AgentID:       nil,
+				},
+			},
+			action:        "read",
+			object:        "shared_data",
+			objectContext: AllwaysMatchObjectScope{},
+			expectError:   false,
+		},
+		{
+			name: "Participant can read shared_data (multiple roles rule)",
+			identity: &Identity{
+				Role: RoleParticipant,
+				Scope: IdentityScope{
+					ParticipantID: &testUUID,
+					AgentID:       nil,
+				},
+			},
+			action:        "read",
+			object:        "shared_data",
+			objectContext: AllwaysMatchObjectScope{},
+			expectError:   false,
+		},
+		{
+			name: "Agent cannot read shared_data (not in multiple roles rule)",
+			identity: &Identity{
+				Role: RoleAgent,
+				Scope: IdentityScope{
+					ParticipantID: &testUUID,
+					AgentID:       &testUUID2,
+				},
+			},
+			action:        "read",
+			object:        "shared_data",
+			objectContext: AllwaysMatchObjectScope{},
+			expectError:   true,
+			errorContains: "access denied: no matching authorization rule found",
+		},
+		{
+			name: "Participant can write participant_data (multiple roles rule)",
+			identity: &Identity{
+				Role: RoleParticipant,
+				Scope: IdentityScope{
+					ParticipantID: &testUUID,
+					AgentID:       nil,
+				},
+			},
+			action:        "write",
+			object:        "participant_data",
+			objectContext: AllwaysMatchObjectScope{},
+			expectError:   false,
+		},
+		{
+			name: "Agent can write participant_data (multiple roles rule)",
+			identity: &Identity{
+				Role: RoleAgent,
+				Scope: IdentityScope{
+					ParticipantID: &testUUID,
+					AgentID:       &testUUID2,
+				},
+			},
+			action:        "write",
+			object:        "participant_data",
+			objectContext: AllwaysMatchObjectScope{},
+			expectError:   false,
+		},
+		{
+			name: "Admin cannot write participant_data (not in multiple roles rule)",
+			identity: &Identity{
+				Role: RoleAdmin,
+				Scope: IdentityScope{
+					ParticipantID: nil,
+					AgentID:       nil,
+				},
+			},
+			action:        "write",
+			object:        "participant_data",
+			objectContext: AllwaysMatchObjectScope{},
+			expectError:   true,
+			errorContains: "access denied: no matching authorization rule found",
+		},
 	}
 
 	for _, tt := range tests {
@@ -165,7 +253,7 @@ func TestRuleBasedAuthorizer_Authorize(t *testing.T) {
 
 func TestRuleBasedAuthorizer_Authorize_ObjectContextMismatch(t *testing.T) {
 	rules := []AuthorizationRule{
-		{Role: RoleAdmin, Action: "read", Object: "user"},
+		{Roles: []Role{RoleAdmin}, Action: "read", Object: "user"},
 	}
 
 	authorizer := NewRuleBasedAuthorizer(rules)
@@ -189,7 +277,7 @@ func TestRuleBasedAuthorizer_Authorize_ObjectContextMismatch(t *testing.T) {
 
 func TestRuleBasedAuthorizer_Authorize_NilObjectContext(t *testing.T) {
 	rules := []AuthorizationRule{
-		{Role: RoleAdmin, Action: "read", Object: "user"},
+		{Roles: []Role{RoleAdmin}, Action: "read", Object: "user"},
 	}
 
 	authorizer := NewRuleBasedAuthorizer(rules)
