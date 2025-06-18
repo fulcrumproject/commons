@@ -19,7 +19,7 @@ var (
 )
 
 // Auth adds the identity to the context retrieving it from the authenticator
-func Auth[ID, S any](authenticator auth.Authenticator) func(http.Handler) http.Handler {
+func Auth(authenticator auth.Authenticator) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")

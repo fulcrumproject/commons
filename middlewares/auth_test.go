@@ -119,7 +119,7 @@ func TestAuth(t *testing.T) {
 			})
 
 			// Create middleware
-			middleware := Auth[string, string](mockAuth)(testHandler)
+			middleware := Auth(mockAuth)(testHandler)
 
 			// Create request
 			req := httptest.NewRequest("GET", "/test", nil)
